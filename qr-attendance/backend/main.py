@@ -260,14 +260,33 @@ def scan(qr_token: str, user=Depends(current_user)):
         if not session:
             raise HTTPException(400, "session is closed")
 
-        # Check if student is on the official list
-        enrolled = conn.execute(
-            text("SELECT 1 FROM enrollments WHERE student_id = :sid AND course_id = :cid"),
-            {"sid": user["id"], "cid": session["course_id"]}
-        ).first()
-        if not enrolled:
-            raise HTTPException(403, "You are not on the official list for this course")
+     # Check if student is on the official list
+enrolled = conn.execute(
+    text("""
+        SELECT u.name 
+        FROM enrollments e
+        JOIN users u ON u.id = e.student_id
+        WHERE e.student_id = :sid AND e.course_id = :cid
+    """),
+    {"sid": user["id"], "cid": session["course_id"]}
+).mappings().first()
 
+if not enrolled:
+    raise HTTPException(403, "You are not on the official list for this course")
+
+# Flexible name check
+def normalize_name(name):
+    # Lowercase, remove extra spaces, sort words
+    words = name.lower().strip().split()
+    return " ".join(sorted(words))
+
+student_name = conn.execute(
+    text("SELECT name FROM users WHERE id = :id"),
+    {"id": user["id"]}
+).scalar()
+
+if normalize_name(student_name) != normalize_name(enrolled["name"]):
+    raise HTTPException(403, "Your name does not match the official list")
         # Check if already marked
         existing = conn.execute(
             text("""
