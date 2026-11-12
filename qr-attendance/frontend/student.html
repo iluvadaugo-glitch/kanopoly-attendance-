@@ -30,7 +30,7 @@
   <div class="container">
     <div id="login-section" class="card">
       <h2>Student Login</h2>
-      <input id="email" placeholder="Email">
+      <input id="regno" placeholder="Registration Number (e.g. ND/COM/24/0134)">
       <input id="password" type="password" placeholder="Password">
       <button onclick="login()">Login</button>
       <p id="status" style="color:red;"></p>
@@ -73,7 +73,7 @@
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: new URLSearchParams({
-          username: document.getElementById("email").value,
+          username: document.getElementById("regno").value,
           password: document.getElementById("password").value
         })
       });
