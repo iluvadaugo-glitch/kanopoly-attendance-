@@ -39,7 +39,27 @@
       <div class="card">
         <h2>Quick Actions</h2>
         <a href="/teacher" target="_blank"><button class="btn-green">Start Class / Show QR Code</button></a>
-        <a href="/change-password"><button>Change Password</button></a>
+      </div>
+
+      <div class="card">
+        <h2>Add Student Manually</h2>
+        <input id="manualCourseId" placeholder="Course ID">
+        <input id="studentName" placeholder="Student Name">
+        <input id="studentEmail" placeholder="Student Email">
+        <button onclick="addStudentManually()">Add Student</button>
+        <p id="manualResult"></p>
+      </div>
+
+      <div class="card">
+        <h2>Import Students (CSV)</h2>
+        <p style="font-size:14px; color:#555; margin-bottom:10px;">
+          CSV format: name,email<br>
+          Example: John Doe,john@example.com
+        </p>
+        <input id="courseId" placeholder="Course ID">
+        <input type="file" id="csvFile" accept=".csv">
+        <button onclick="importStudents()">Upload CSV</button>
+        <p id="importResult"></p>
       </div>
 
       <div class="card">
@@ -56,14 +76,6 @@
           </thead>
           <tbody id="students"></tbody>
         </table>
-      </div>
-
-      <div class="card">
-        <h2>Import Students (CSV)</h2>
-        <input id="courseId" placeholder="Course ID">
-        <input type="file" id="csvFile" accept=".csv">
-        <button onclick="importStudents()">Upload CSV</button>
-        <p id="importResult"></p>
       </div>
     </div>
   </div>
@@ -107,6 +119,32 @@
       const res = await fetch("/me", { headers: {Authorization: "Bearer " + token} });
       const u = await res.json();
       document.getElementById("teacherName").textContent = u.name;
+    }
+
+    async function addStudentManually() {
+      const courseId = document.getElementById("manualCourseId").value;
+      const name = document.getElementById("studentName").value.trim();
+      const email = document.getElementById("studentEmail").value.trim();
+      if (!courseId || !name || !email) {
+        document.getElementById("manualResult").textContent = "Fill all fields";
+        return;
+      }
+      // Reuse the import endpoint by sending a small CSV-like request
+      const formData = new FormData();
+      const blob = new Blob([`name,email\n${name},${email}`], { type: "text/csv" });
+      formData.append("file", blob, "student.csv");
+      const res = await fetch(`/teacher/import-students?course_id=${courseId}`, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: formData
+      });
+      const data = await res.json();
+      document.getElementById("manualResult").textContent = data.message || JSON.stringify(data);
+      if (res.ok) {
+        document.getElementById("studentName").value = "";
+        document.getElementById("studentEmail").value = "";
+        loadStudents();
+      }
     }
 
     async function loadStudents() {
