@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial; background: #f4f6f9; }
+    .navbar { background: #333; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
+    button { background: #1a73e8; color: white; border: none; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Admin Panel</h1>
+    <div id="nav-right" class="hidden">
+      <span id="adminName"></span>
+      <button onclick="logout()" style="margin-left:15px;">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="login-section" class="card">
+      <h2>Login as Admin</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p id="status" style="color:red;"></p>
+    </div>
+
+    <div id="admin-content" class="hidden">
+      <div class="card">
+        <h2>Create Teacher</h2>
+        <input id="tName" placeholder="Teacher Name">
+        <input id="tEmail" placeholder="Email">
+        <input id="tPassword" type="password" placeholder="Password">
+        <button onclick="createTeacher()">Create Teacher</button>
+        <p id="teacherResult"></p>
+        <button id="sendEmailBtn" style="display:none; background:#34a853;" onclick="sendTeacherEmail()">Send Login Details to Teacher</button>
+      </div>
+
+      <div class="card">
+        <h2>All Users</h2>
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody id="users"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>All Courses</h2>
+        <table>
+          <thead><tr><th>ID</th><th>Code</th><th>Title</th><th>Teacher</th></tr></thead>
+          <tbody id="courses"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem("admin_token") || "";
+    let lastTeacher = {};
+
+    function showAdmin() {
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("admin-content").classList.remove("hidden");
+      document.getElementById("nav-right").classList.remove("hidden");
+      loadUsers();
+      loadCourses();
+      fetch("/me", { headers: {Authorization: "Bearer " + token} })
+        .then(r => r.json())
+        .then(u => document.getElementById("adminName").textContent = u.name);
+    }
+
+    function logout() {
+      localStorage.removeItem("admin_token");
+      token = "";
+      location.reload();
+    }
+
+    async function login() {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.role !== "admin") {
+        document.getElementById("status").textContent = "Admin login failed";
+        return;
+      }
+      token = data.access_token;
+      localStorage.setItem("admin_token", token);
+      showAdmin();
+    }
+
+   async function loadUsers() {
+  const res = await fetch("/admin/users", { headers: {Authorization: "Bearer " + token} });
+  const users = await res.json();
+  const tbody = document.getElementById("users");
+  tbody.innerHTML = "";
+  users.forEach(u => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${u.id}</td>
+        <td>${u.name}</td>
+        <td>${u.email}</td>
+        <td>${u.role}</td>
+        <td><button onclick="deleteUser(${u.id})" style="background:#ea4335; padding:6px 10px;">Delete</button></td>
+      </tr>`;
+  });
+}
+
+async function deleteUser(id) {
+  if (!confirm("Are you sure you want to delete this user?")) return;
+  const res = await fetch(`/admin/users/${id}`, {
+    method: "DELETE",
+    headers: {Authorization: "Bearer " + token}
+  });
+  if (res.ok) {
+    loadUsers();
+  } else {
+    alert("Failed to delete");
+  }
+}
+
+    async function loadCourses() {
+      const res = await fetch("/admin/courses", { headers: {Authorization: "Bearer " + token} });
+      const courses = await res.json();
+      const tbody = document.getElementById("courses");
+      tbody.innerHTML = "";
+      courses.forEach(c => {
+        tbody.innerHTML += `<tr><td>${c.id}</td><td>${c.code}</td><td>${c.title}</td><td>${c.teacher_name || "-"}</td></tr>`;
+      });
+    }
+
+    async function createTeacher() {
+      const name = document.getElementById("tName").value;
+      const email = document.getElementById("tEmail").value;
+      const password = document.getElementById("tPassword").value;
+      const res = await fetch(`/admin/create-teacher?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("teacherResult").textContent = "Teacher created!";
+        lastTeacher = { name, email, password };
+        document.getElementById("sendEmailBtn").style.display = "inline-block";
+        loadUsers();
+      } else {
+        document.getElementById("teacherResult").textContent = data.detail || "Failed";
+      }
+    }
+
+    async function sendTeacherEmail() {
+      const res = await fetch(`/admin/send-teacher-email?teacher_email=${encodeURIComponent(lastTeacher.email)}&teacher_name=${encodeURIComponent(lastTeacher.name)}&password=${encodeURIComponent(lastTeacher.password)}`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      const data = await res.json();
+      alert(res.ok ? "Email sent successfully!" : (data.detail || "Failed to send email"));
+    }
+
+    if (token) showAdmin();
+  </script>
+</body>
+</html>

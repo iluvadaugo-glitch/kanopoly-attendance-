@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Teacher - Sessions & Courses</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
+    .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .container { max-width: 700px; margin: 40px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 25px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
+    .hidden { display: none; }
+    #qrcode { margin: 20px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Teacher Portal</h1>
+    <div id="nav-right" class="hidden">
+      <span id="teacherName" style="margin-right:15px;"></span>
+      <button onclick="logout()" style="width:auto; padding:8px 16px;">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Login -->
+    <div id="login-section" class="card">
+      <h2>Login</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p id="status" style="color:red;"></p>
+    </div>
+
+    <!-- After login -->
+    <div id="main-section" class="hidden">
+      <!-- Create Course -->
+      <div class="card">
+        <h2>Create a Course</h2>
+        <input id="courseCode" placeholder="Course Code (e.g. CSC213)">
+        <input id="courseTitle" placeholder="Course Title">
+        <button onclick="createCourse()">Create Course</button>
+        <p id="courseResult"></p>
+      </div>
+
+      <!-- My Courses -->
+      <div class="card">
+        <h2>My Courses</h2>
+        <div id="courseList"></div>
+      </div>
+
+      <!-- Start Session -->
+      <div class="card">
+        <h2>Start a Session</h2>
+        <input id="courseId" type="number" placeholder="Course ID">
+        <button onclick="startSession()">Start Session & Show QR</button>
+        <div id="qrcode"></div>
+        <p id="sessionInfo"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    let token = localStorage.getItem("teacher_token") || "";
+
+    function showMain() {
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("main-section").classList.remove("hidden");
+      document.getElementById("nav-right").classList.remove("hidden");
+      loadMyCourses();
+      fetch("/me", { headers: {Authorization: "Bearer " + token} })
+        .then(r => r.json())
+        .then(user => {
+          document.getElementById("teacherName").textContent = user.name;
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem("teacher_token");
+      token = "";
+      location.reload();
+    }
+
+    async function login() {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById("status").textContent = "Login failed";
+        return;
+      }
+      token = data.access_token;
+      localStorage.setItem("teacher_token", token);
+      showMain();
+    }
+
+    async function createCourse() {
+      const code = document.getElementById("courseCode").value;
+      const title = document.getElementById("courseTitle").value;
+      const res = await fetch(`/courses?code=${encodeURIComponent(code)}&title=${encodeURIComponent(title)}`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      const data = await res.json();
+      document.getElementById("courseResult").textContent = res.ok 
+        ? `Course created! ID: ${data.id}` 
+        : "Failed to create course";
+      if (res.ok) loadMyCourses();
+    }
+
+    async function loadMyCourses() {
+      const res = await fetch("/teacher/courses", {
+        headers: {Authorization: "Bearer " + token}
+      });
+      const courses = await res.json();
+      const div = document.getElementById("courseList");
+      div.innerHTML = "";
+      if (courses.length === 0) {
+        div.innerHTML = "<p>No courses yet.</p>";
+        return;
+      }
+      courses.forEach(c => {
+        div.innerHTML += `<p><b>ID: ${c.id}</b> — ${c.code} - ${c.title}</p>`;
+      });
+    }
+
+    async function startSession() {
+      const courseId = document.getElementById("courseId").value;
+      const res = await fetch(`/sessions?course_id=${courseId}`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      const session = await res.json();
+      if (!res.ok) { alert("Failed to start session"); return; }
+
+      const qrRes = await fetch(`/sessions/${session.id}/qr`, {
+        headers: {Authorization: "Bearer " + token}
+      });
+      const qrData = await qrRes.json();
+
+      document.getElementById("qrcode").innerHTML = "";
+      new QRCode(document.getElementById("qrcode"), qrData.qr_token);
+      document.getElementById("sessionInfo").textContent = `Session ${session.id} started. QR expires in 10 minutes.`;
+    }
+
+    if (token) showMain();
+  </script>
+</body>
+</html>

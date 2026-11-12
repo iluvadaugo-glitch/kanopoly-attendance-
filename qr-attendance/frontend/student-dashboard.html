@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; }
+    .navbar { background: #1a73e8; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 22px; }
+    .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .login-box { max-width: 400px; margin: 80px auto; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+    button { background: #1a73e8; color: white; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { background: #1557b0; }
+    .course { padding: 15px; border-bottom: 1px solid #eee; }
+    .course:last-child { border: none; }
+    .percent { color: #1a73e8; font-weight: bold; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Student Portal</h1>
+    <div id="nav-right" class="hidden">
+      <span id="studentName" style="margin-right:20px;"></span>
+      <button onclick="logout()" style="width:auto; padding:8px 16px;">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Login -->
+    <div id="login-section" class="card login-box">
+      <h2 style="margin-bottom:15px;">Login</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p id="status" style="color:red; margin-top:10px;"></p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+      <div class="card">
+        <h2>My Courses</h2>
+        <div id="courses"></div>
+      </div>
+      <div class="card">
+        <h2>Enroll in a Course</h2>
+        <div id="available"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem("token") || "";
+
+    function showDashboard() {
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      document.getElementById("nav-right").classList.remove("hidden");
+      loadDashboard();
+      loadCourses();
+
+      // Show student name
+      fetch("/me", { headers: {Authorization: "Bearer " + token} })
+        .then(r => r.json())
+        .then(user => {
+          document.getElementById("studentName").textContent = "Welcome, " + user.name;
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      token = "";
+      location.reload();
+    }
+
+    async function login() {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById("status").textContent = "Login failed";
+        return;
+      }
+      token = data.access_token;
+      localStorage.setItem("token", token);
+      showDashboard();
+    }
+
+    async function loadDashboard() {
+      const res = await fetch("/me/dashboard", { headers: {Authorization: "Bearer " + token} });
+      const data = await res.json();
+      const div = document.getElementById("courses");
+      div.innerHTML = "";
+      if (data.courses.length === 0) {
+        div.innerHTML = "<p>No courses yet. Enroll below.</p>";
+        return;
+      }
+      data.courses.forEach(c => {
+        div.innerHTML += `<div class="course">
+          <b>${c.code} - ${c.title}</b><br>
+          Attended: ${c.attended}/${c.total_sessions} &nbsp; | &nbsp; <span class="percent">${c.percentage}%</span>
+        </div>`;
+      });
+    }
+
+    async function loadCourses() {
+      const res = await fetch("/courses");
+      const courses = await res.json();
+      const div = document.getElementById("available");
+      div.innerHTML = "";
+      courses.forEach(c => {
+        div.innerHTML += `<div class="course">
+          ${c.code} - ${c.title}
+          <button onclick="enroll(${c.id})" style="width:auto; margin-left:15px; padding:6px 12px;">Enroll</button>
+        </div>`;
+      });
+    }
+
+    async function enroll(courseId) {
+      const res = await fetch(`/courses/${courseId}/enroll-self`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      alert(res.ok ? "Enrolled successfully!" : "Failed to enroll");
+      loadDashboard();
+    }
+
+    // Auto login if token exists
+    if (token) showDashboard();
+  </script>
+</body>
+</html>

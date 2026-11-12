@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student - Scan QR</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
+    .navbar { background: #1a73e8; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+    button { background: #1a73e8; color: white; border: none; cursor: pointer; }
+    .hidden { display: none; }
+    #reader { width: 100%; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Student Portal</h1>
+    <div id="nav-right" class="hidden">
+      <span id="studentName" style="margin-right:15px;"></span>
+      <button onclick="logout()" style="width:auto; padding:8px 16px;">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="login-section" class="card">
+      <h2>Login to Scan</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p id="status" style="color:red;"></p>
+    </div>
+
+    <div id="scan-section" class="card hidden">
+      <h2>Scan Attendance QR</h2>
+      <div id="reader"></div>
+      <p id="result"></p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script>
+    let token = localStorage.getItem("student_token") || "";
+
+    function showScan() {
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("scan-section").classList.remove("hidden");
+      document.getElementById("nav-right").classList.remove("hidden");
+      startScanner();
+      fetch("/me", { headers: {Authorization: "Bearer " + token} })
+        .then(r => r.json())
+        .then(user => {
+          document.getElementById("studentName").textContent = user.name;
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem("student_token");
+      token = "";
+      location.reload();
+    }
+
+    async function login() {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById("status").textContent = "Login failed";
+        return;
+      }
+      token = data.access_token;
+      localStorage.setItem("student_token", token);
+      showScan();
+    }
+
+    function startScanner() {
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          html5QrCode.stop();
+          const res = await fetch(`/scan?qr_token=${encodeURIComponent(decodedText)}`, {
+            method: "POST",
+            headers: {Authorization: "Bearer " + token}
+          });
+          const data = await res.json();
+          document.getElementById("result").textContent = res.ok 
+            ? "Attendance marked successfully!" 
+            : (data.detail || "Failed");
+          document.getElementById("result").style.color = res.ok ? "green" : "red";
+        }
+      ).catch(err => {
+        document.getElementById("result").textContent = "Camera error: " + err;
+      });
+    }
+
+    if (token) showScan();
+  </script>
+</body>
+</html>

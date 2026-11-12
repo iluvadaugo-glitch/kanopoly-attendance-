@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Create Account</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial; background: #f0f2f5; margin: 0; }
+    .navbar { background: #1a73e8; color: white; padding: 18px; text-align: center; }
+    .box { max-width: 420px; margin: 60px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; }
+    button { background: #1a73e8; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="navbar"><h1>Create Student Account</h1></div>
+  <div class="box">
+    <input id="name" placeholder="Full Name">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="register()">Create Account</button>
+    <p id="msg" style="margin-top:15px;"></p>
+    <p style="margin-top:20px;"><a href="/">← Back to Home</a></p>
+  </div>
+  <script>
+    async function register() {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`/register?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&role=student`, { method: "POST" });
+      const data = await res.json();
+      document.getElementById("msg").textContent = res.ok ? "Account created! You can now login." : (data.detail || "Failed");
+      document.getElementById("msg").style.color = res.ok ? "green" : "red";
+    }
+  </script>
+</body>
+</html>

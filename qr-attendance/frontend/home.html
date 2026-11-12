@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QR Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f6f7fb; }
+    .card { background: white; padding: 24px; border-radius: 12px; max-width: 720px; }
+    a { display: inline-block; margin: 8px 8px 0 0; padding: 12px 16px;
+        background: #1f4fd8; color: white; text-decoration: none; border-radius: 8px; }
+    li { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>QR Attendance System</h1>
+    <p>A teacher starts a class. The screen shows a QR code that expires every 30 seconds. A student scans it once and is marked present.</p>
+    <a href="/teacher">Teacher screen</a>
+    <a href="/student">Student screen</a>
+    <h2>Demo accounts</h2>
+    <ul>
+      <li>Teacher: funds.0002@gmail.com / 08088</li>
+      <li>Student: ben@school.com / student123</li>
+    </ul>
+    <h2>What stops proxy attendance</h2>
+    <ul>
+      <li>The QR is signed and dies after 30 seconds.</li>
+      <li>The student must be logged in and enrolled.</li>
+      <li>The same student cannot scan twice for one session.</li>
+    </ul>
+  </div>
+</body>
+</html>
