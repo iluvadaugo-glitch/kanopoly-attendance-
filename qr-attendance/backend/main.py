@@ -539,7 +539,7 @@ from email.mime.text import MIMEText
 
 # Your Gmail details
 SMTP_EMAIL = "funds.0002@gmail.com"
-SMTP_PASSWORD = "iaqtmpmpnwxrmehu"   # App Password (spaces removed)
+SMTP_PASSWORD = "ivvdjrdckdclvsab"   # App Password (spaces removed)
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
@@ -558,7 +558,7 @@ Login details:
 Email: {teacher_email}
 Password: {password}
 
-Portal link: http://localhost:8000/
+Portal link: https://kanopolyattendance.site/
 
 Please log in and change your password if needed.
 
