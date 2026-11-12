@@ -7,13 +7,13 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial; background: #f4f6f9; }
-    .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; }
+    .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
     .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
     .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
     input, button, select { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
     button { background: #0d47a1; color: white; border: none; cursor: pointer; }
     .hidden { display: none; }
-    #qrcode { margin: 20px 0; }
+    #qrcode { margin: 20px 0; text-align: center; }
   </style>
 </head>
 <body>
@@ -124,8 +124,11 @@
         headers: {Authorization: "Bearer " + token}
       });
       const data = await res.json();
-      document.getElementById("qrcode").innerHTML = "";
-      QRCode.toCanvas(document.getElementById("qrcode"), data.qr_token, { width: 250 }, function (error) {
+      const qrDiv = document.getElementById("qrcode");
+      qrDiv.innerHTML = "";
+      const canvas = document.createElement("canvas");
+      qrDiv.appendChild(canvas);
+      QRCode.toCanvas(canvas, data.qr_token, { width: 250 }, function (error) {
         if (error) console.error(error);
       });
     }
