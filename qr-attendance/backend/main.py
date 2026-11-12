@@ -249,6 +249,7 @@ def scan(qr_token: str, user=Depends(current_user)):
         session_id = int(payload["session_id"])
     except JWTError:
         raise HTTPException(400, "QR expired or invalid")
+    
     with engine.begin() as conn:
         session = conn.execute(
             text("SELECT course_id FROM sessions WHERE id = :id AND status = 'open'"),
@@ -256,15 +257,16 @@ def scan(qr_token: str, user=Depends(current_user)):
         ).mappings().first()
         if not session:
             raise HTTPException(400, "session is closed")
+
+        # Check if student is on the official list
         enrolled = conn.execute(
-            text("""
-                SELECT 1 FROM enrollments
-                WHERE student_id = :student_id AND course_id = :course_id
-            """),
-            {"student_id": user["id"], "course_id": session["course_id"]},
+            text("SELECT 1 FROM enrollments WHERE student_id = :sid AND course_id = :cid"),
+            {"sid": user["id"], "cid": session["course_id"]}
         ).first()
         if not enrolled:
-            raise HTTPException(403, "you are not enrolled in this course")
+            raise HTTPException(403, "You are not on the official list for this course")
+
+        # Check if already marked
         existing = conn.execute(
             text("""
                 SELECT id FROM attendance
@@ -274,6 +276,8 @@ def scan(qr_token: str, user=Depends(current_user)):
         ).first()
         if existing:
             raise HTTPException(400, "already marked present")
+
+        # Mark attendance
         conn.execute(
             text("""
                 INSERT INTO attendance (session_id, student_id)
@@ -281,25 +285,8 @@ def scan(qr_token: str, user=Depends(current_user)):
             """),
             {"session_id": session_id, "student_id": user["id"]},
         )
+    
     return {"present": True, "session_id": session_id}
-
-@app.get("/sessions/{session_id}/attendance")
-def attendance(session_id: int, user=Depends(current_user)):
-    if user["role"] != "teacher":
-        raise HTTPException(403, "only a teacher can view attendance")
-    with engine.begin() as conn:
-        rows = conn.execute(
-            text("""
-                SELECT u.name, u.email, a.scanned_at
-                FROM attendance a
-                JOIN users u ON u.id = a.student_id
-                WHERE a.session_id = :session_id
-                ORDER BY a.scanned_at
-            """),
-            {"session_id": session_id},
-        ).mappings().all()
-    return [dict(row) for row in rows]
-
 # -------------------- Student Dashboard --------------------
 @app.get("/me/dashboard")
 def student_dashboard(user=Depends(current_user)):
