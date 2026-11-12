@@ -409,60 +409,52 @@ import csv
 import io
 
 @app.post("/teacher/import-students")
-async def import_students(
-    course_id: int,
-    file: UploadFile = File(...),
-    user=Depends(current_user)
-):
+def import_students(course_id: int, file: UploadFile = File(...), user=Depends(current_user)):
     if user["role"] != "teacher":
-        raise HTTPException(403, "only teachers can import students")
-
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(400, "only CSV files are allowed")
-
-    content = await file.read()
-    text_content = content.decode("utf-8")
-    reader = csv.DictReader(io.StringIO(text_content))
-
+        raise HTTPException(403, "only teachers")
+    
+    content = file.file.read().decode("utf-8")
+    lines = content.strip().splitlines()
+    if not lines or not lines[0].lower().startswith("name"):
+        raise HTTPException(400, "CSV must start with: name,reg_no")
+    
     created = 0
     enrolled = 0
     skipped = 0
-
+    
     with engine.begin() as conn:
-        course = conn.execute(
-            text("SELECT id FROM courses WHERE id = :id AND teacher_id = :tid"),
-            {"id": course_id, "tid": user["id"]},
-        ).first()
-        if not course:
-            raise HTTPException(404, "course not found or not yours")
-
-        for row in reader:
-            name = row.get("name", "").strip()
-            email = row.get("email", "").strip().lower()
-            if not name or not email:
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) < 2:
                 skipped += 1
                 continue
-
+            name, reg_no = parts[0], parts[1]
+            
+            # Check if student already exists by reg_no
             existing = conn.execute(
-                text("SELECT id FROM users WHERE email = :email"),
-                {"email": email},
+                text("SELECT id FROM users WHERE reg_no = :reg"),
+                {"reg": reg_no}
             ).mappings().first()
-
+            
             if existing:
                 student_id = existing["id"]
             else:
+                # Create new student with default password
                 password_hash = hash_password("password123")
                 new_user = conn.execute(
                     text("""
-                        INSERT INTO users (name, email, password_hash, role)
-                        VALUES (:name, :email, :password_hash, 'student')
+                        INSERT INTO users (name, reg_no, password_hash, role)
+                        VALUES (:name, :reg_no, :password_hash, 'student')
                         RETURNING id
                     """),
-                    {"name": name, "email": email, "password_hash": password_hash},
+                    {"name": name, "reg_no": reg_no, "password_hash": password_hash},
                 ).mappings().one()
                 student_id = new_user["id"]
                 created += 1
-
+            
+            # Enroll in course
             conn.execute(
                 text("""
                     INSERT INTO enrollments (student_id, course_id)
@@ -472,14 +464,13 @@ async def import_students(
                 {"sid": student_id, "cid": course_id},
             )
             enrolled += 1
-
+    
     return {
         "created": created,
         "enrolled": enrolled,
         "skipped": skipped,
         "message": f"Imported {created} new students and enrolled {enrolled}"
     }
-
 # -------------------- Current User Info --------------------
 @app.get("/me")
 def get_me(user=Depends(current_user)):
