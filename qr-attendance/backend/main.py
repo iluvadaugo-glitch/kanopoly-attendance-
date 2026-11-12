@@ -7,7 +7,13 @@ from datetime import datetime, timedelta
 import hashlib
 import secrets
 
-DATABASE_URL = "postgresql+psycopg2://postgres:postgress1234@localhost:5432/qr_attendance"
+import os
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgress1234@localhost:5432/qr_attendance")
+
+# Fix Railway's postgres:// URL for SQLAlchemy
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
 SECRET = "change-this-secret"
 engine = create_engine(DATABASE_URL)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
