@@ -10,11 +10,13 @@
     .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
     .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
     .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-    button { padding: 10px 16px; margin: 5px; border-radius: 5px; border: none; background: #0d47a1; color: white; cursor: pointer; }
+    input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
+    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
     .hidden { display: none; }
     .course-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #eee; }
     .course-item:last-child { border-bottom: none; }
     #qrcode { margin: 20px 0; text-align: center; }
+    .btn-green { background: #34a853; }
   </style>
 </head>
 <body>
@@ -29,13 +31,21 @@
   <div class="container">
     <div id="login-section" class="card">
       <h2>Teacher Login</h2>
-      <input id="email" placeholder="Email" style="padding:10px; margin:5px; width:250px;">
-      <input id="password" type="password" placeholder="Password" style="padding:10px; margin:5px; width:250px;">
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
       <button onclick="login()">Login</button>
       <p id="status" style="color:red;"></p>
     </div>
 
     <div id="teacher-content" class="hidden">
+      <div class="card">
+        <h2>Create New Course</h2>
+        <input id="courseCode" placeholder="Course Code (e.g. CSC101)">
+        <input id="courseTitle" placeholder="Course Title">
+        <button onclick="createCourse()" class="btn-green">Create Course</button>
+        <p id="createResult"></p>
+      </div>
+
       <div class="card">
         <h2>My Courses</h2>
         <div id="coursesList"></div>
@@ -45,7 +55,7 @@
         <h2>QR Code for: <span id="currentCourseName"></span></h2>
         <div id="qrcode"></div>
         <p id="sessionInfo"></p>
-        <button onclick="printQR()" style="background:#34a853;">Print QR Code</button>
+        <button onclick="printQR()" class="btn-green">Print QR Code</button>
       </div>
     </div>
   </div>
@@ -90,6 +100,28 @@
       const res = await fetch("/me", { headers: {Authorization: "Bearer " + token} });
       const u = await res.json();
       document.getElementById("teacherName").textContent = u.name;
+    }
+
+    async function createCourse() {
+      const code = document.getElementById("courseCode").value.trim();
+      const title = document.getElementById("courseTitle").value.trim();
+      if (!code || !title) {
+        document.getElementById("createResult").textContent = "Please fill both fields";
+        return;
+      }
+      const res = await fetch(`/courses?code=${encodeURIComponent(code)}&title=${encodeURIComponent(title)}`, {
+        method: "POST",
+        headers: {Authorization: "Bearer " + token}
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("createResult").textContent = "Course created!";
+        document.getElementById("courseCode").value = "";
+        document.getElementById("courseTitle").value = "";
+        loadCourses();
+      } else {
+        document.getElementById("createResult").textContent = data.detail || "Failed";
+      }
     }
 
     async function loadCourses() {
