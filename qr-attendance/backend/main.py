@@ -77,39 +77,53 @@ def admin_page():
 
 # -------------------- Auth --------------------
 @app.post("/register")
-def register(name: str, email: str, password: str, role: str):
-    if role not in ("teacher", "student", "admin"):
-        raise HTTPException(400, "role must be teacher, student, or admin")
+def register(name: str, reg_no: str, password: str, role: str = "student"):
+    if role not in ("student", "teacher", "admin"):
+        raise HTTPException(400, "invalid role")
     password_hash = hash_password(password)
     with engine.begin() as conn:
-        exists = conn.execute(
-            text("SELECT id FROM users WHERE email = :email"),
-            {"email": email},
-        ).first()
-        if exists:
-            raise HTTPException(400, "email already registered")
-        row = conn.execute(
-            text("""
-                INSERT INTO users (name, email, password_hash, role)
-                VALUES (:name, :email, :password_hash, :role)
-                RETURNING id, name, email, role
-            """),
-            {"name": name, "email": email, "password_hash": password_hash, "role": role},
-        ).mappings().one()
+        # Check if reg_no already exists (for students)
+        if role == "student":
+            exists = conn.execute(text("SELECT id FROM users WHERE reg_no = :reg"), {"reg": reg_no}).first()
+            if exists:
+                raise HTTPException(400, "registration number already exists")
+            row = conn.execute(
+                text("""
+                    INSERT INTO users (name, reg_no, password_hash, role)
+                    VALUES (:name, :reg_no, :password_hash, 'student')
+                    RETURNING id, name, reg_no, role
+                """),
+                {"name": name, "reg_no": reg_no, "password_hash": password_hash},
+            ).mappings().one()
+        else:
+            # Teachers/Admins still use email
+            raise HTTPException(400, "teachers and admins must be created by admin")
     return dict(row)
+
 
 @app.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends()):
     with engine.begin() as conn:
-        user = conn.execute(
-            text("SELECT id, email, password_hash, role FROM users WHERE email = :email"),
-            {"email": form.username},
+        # Try login with reg_no first (for students)
+        row = conn.execute(
+            text("SELECT id, password_hash, role FROM users WHERE reg_no = :u"),
+            {"u": form.username},
         ).mappings().first()
-    if not user or not verify_password(form.password, user["password_hash"]):
-        raise HTTPException(401, "wrong email or password")
-    token = make_token(user["id"], user["role"])
-    return {"access_token": token, "token_type": "bearer", "role": user["role"]}
-
+        
+        # If not found, try email (for teachers/admins)
+        if not row:
+            row = conn.execute(
+                text("SELECT id, password_hash, role FROM users WHERE email = :u"),
+                {"u": form.username},
+            ).mappings().first()
+        
+        if not row or not verify_password(form.password, row["password_hash"]):
+            raise HTTPException(401, "invalid credentials")
+    return {
+        "access_token": make_token(row["id"], row["role"]),
+        "token_type": "bearer",
+        "role": row["role"],
+    }
 # -------------------- Courses --------------------
 @app.post("/courses")
 def create_course(code: str, title: str, user=Depends(current_user)):
