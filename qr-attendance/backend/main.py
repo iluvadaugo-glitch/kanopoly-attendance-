@@ -548,52 +548,36 @@ def admin_courses(user=Depends(current_user)):
             """)
         ).mappings().all()
     return [dict(row) for row in rows]
-import smtplib
-from email.mime.text import MIMEText
+import resend
 
-# Your Gmail details
-SMTP_EMAIL = "funds.0002@gmail.com"
-SMTP_PASSWORD = "ivvdjrdckdclvsab"   # App Password (spaces removed)
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+resend.api_key = "re_YRtyasgC_CZPrbgitbfFBSGcrDPKSgjJB"
 
 @app.post("/admin/send-teacher-email")
 def send_teacher_email(teacher_email: str, teacher_name: str, password: str, user=Depends(current_user)):
     if user["role"] != "admin":
         raise HTTPException(403, "admin only")
 
-    subject = "Your Teacher Account - QR Attendance Portal"
-    body = f"""
-Hello {teacher_name},
-
-Your teacher account has been created.
-
-Login details:
-Email: {teacher_email}
-Password: {password}
-
-Portal link: https://kanopolyattendance.site/
-
-Please log in and change your password if needed.
-
-Best regards,
-School Admin
-"""
-
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = teacher_email
-
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.send_message(msg)
+        params = {
+            "from": "School Admin <onboarding@resend.dev>",
+            "to": [teacher_email],
+            "subject": "Your Teacher Account - QR Attendance Portal",
+            "html": f"""
+                <p>Hello {teacher_name},</p>
+                <p>Your teacher account has been created.</p>
+                <p><b>Login details:</b><br>
+                Email: {teacher_email}<br>
+                Password: {password}</p>
+                <p>Portal link: <a href="https://kanopolyattendance.site/">https://kanopolyattendance.site/</a></p>
+                <p>Please log in and change your password if needed.</p>
+                <p>Best regards,<br>School Admin</p>
+            """
+        }
+        email = resend.Emails.send(params)
         return {"sent": True, "message": "Email sent successfully"}
     except Exception as e:
         raise HTTPException(500, f"Failed to send email: {str(e)}")
-
+        
 @app.post("/change-password")
 def change_password(current_password: str, new_password: str, user=Depends(current_user)):
     with engine.begin() as conn:
