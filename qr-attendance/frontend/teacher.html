@@ -10,9 +10,10 @@
     .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
     .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
     .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-    input, button, select { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
-    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
+    button { padding: 10px 16px; margin: 5px; border-radius: 5px; border: none; background: #0d47a1; color: white; cursor: pointer; }
     .hidden { display: none; }
+    .course-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #eee; }
+    .course-item:last-child { border-bottom: none; }
     #qrcode { margin: 20px 0; text-align: center; }
   </style>
 </head>
@@ -28,8 +29,8 @@
   <div class="container">
     <div id="login-section" class="card">
       <h2>Teacher Login</h2>
-      <input id="email" placeholder="Email">
-      <input id="password" type="password" placeholder="Password">
+      <input id="email" placeholder="Email" style="padding:10px; margin:5px; width:250px;">
+      <input id="password" type="password" placeholder="Password" style="padding:10px; margin:5px; width:250px;">
       <button onclick="login()">Login</button>
       <p id="status" style="color:red;"></p>
     </div>
@@ -40,12 +41,11 @@
         <div id="coursesList"></div>
       </div>
 
-      <div class="card">
-        <h2>Start Class / Show QR</h2>
-        <select id="courseSelect"></select>
-        <button onclick="startSession()">Start Session</button>
+      <div class="card" id="qr-section" style="display:none;">
+        <h2>QR Code for: <span id="currentCourseName"></span></h2>
         <div id="qrcode"></div>
         <p id="sessionInfo"></p>
+        <button onclick="printQR()" style="background:#34a853;">Print QR Code</button>
       </div>
     </div>
   </div>
@@ -96,26 +96,31 @@
       const res = await fetch("/teacher/courses", { headers: {Authorization: "Bearer " + token} });
       const courses = await res.json();
       const list = document.getElementById("coursesList");
-      const select = document.getElementById("courseSelect");
       list.innerHTML = "";
-      select.innerHTML = "";
       courses.forEach(c => {
-        list.innerHTML += `<p><b>${c.code}</b> - ${c.title} (ID: ${c.id})</p>`;
-        select.innerHTML += `<option value="${c.id}">${c.code} - ${c.title}</option>`;
+        list.innerHTML += `
+          <div class="course-item">
+            <div>
+              <b>${c.code}</b> - ${c.title}<br>
+              <small>Course ID: ${c.id}</small>
+            </div>
+            <button onclick="startSession(${c.id}, '${c.code} - ${c.title}')">Start Session</button>
+          </div>`;
       });
     }
 
-    async function startSession() {
-      const courseId = document.getElementById("courseSelect").value;
-      if (!courseId) return alert("Select a course");
+    async function startSession(courseId, courseName) {
       const res = await fetch(`/sessions?course_id=${courseId}`, {
         method: "POST",
         headers: {Authorization: "Bearer " + token}
       });
       const data = await res.json();
-      if (!res.ok) return alert(data.detail || "Failed");
+      if (!res.ok) return alert(data.detail || "Failed to start session");
+      
       currentSessionId = data.id;
+      document.getElementById("currentCourseName").textContent = courseName;
       document.getElementById("sessionInfo").textContent = "Session started! ID: " + currentSessionId;
+      document.getElementById("qr-section").style.display = "block";
       generateQR();
     }
 
@@ -131,6 +136,10 @@
       QRCode.toCanvas(canvas, data.qr_token, { width: 250 }, function (error) {
         if (error) console.error(error);
       });
+    }
+
+    function printQR() {
+      window.print();
     }
 
     if (token) showTeacher();
