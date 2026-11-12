@@ -1,49 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>Teacher Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; }
+    body { font-family: 'Segoe UI', Arial; background: #f4f6f9; }
     .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
-    .navbar h1 { font-size: 22px; }
     .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-    .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-    .login-box { max-width: 400px; margin: 80px auto; }
-    input, button { padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid #ddd; }
+    .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
     button { background: #0d47a1; color: white; border: none; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-    th { background: #f8f9fa; }
-    .percent { font-weight: bold; color: #0d47a1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
     .hidden { display: none; }
+    .btn-green { background: #34a853; }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <h1>Teacher Portal</h1>
+    <h1>Teacher Dashboard</h1>
     <div id="nav-right" class="hidden">
-      <span id="teacherName" style="margin-right:20px;"></span>
-      <button onclick="logout()" style="padding:8px 16px;">Logout</button>
+      <span id="teacherName"></span>
+      <button onclick="logout()" style="margin-left:15px;">Logout</button>
     </div>
   </div>
 
   <div class="container">
-    <div id="login-section" class="card login-box">
-      <h2 style="margin-bottom:15px;">Teacher Login</h2>
-      <input id="email" placeholder="Email" style="width:100%;">
-      <input id="password" type="password" placeholder="Password" style="width:100%;">
-      <button onclick="login()" style="width:100%;">Login</button>
+    <div id="login-section" class="card">
+      <h2>Login</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
       <p id="status" style="color:red;"></p>
     </div>
 
     <div id="dashboard" class="hidden">
       <div class="card">
+        <h2>Quick Actions</h2>
+        <a href="/teacher" target="_blank"><button class="btn-green">Start Class / Show QR Code</button></a>
+        <a href="/change-password"><button>Change Password</button></a>
+      </div>
+
+      <div class="card">
         <h2>My Students</h2>
         <table>
           <thead>
-            <tr><th>Name</th><th>Email</th><th>Course</th><th>Attendance</th><th>%</th></tr>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Course</th>
+              <th>Attendance</th>
+              <th>%</th>
+            </tr>
           </thead>
           <tbody id="students"></tbody>
         </table>
@@ -51,10 +60,10 @@
 
       <div class="card">
         <h2>Import Students (CSV)</h2>
-        <input type="number" id="courseId" placeholder="Course ID"><br>
-        <input type="file" id="csvFile" accept=".csv"><br>
+        <input id="courseId" placeholder="Course ID">
+        <input type="file" id="csvFile" accept=".csv">
         <button onclick="importStudents()">Upload CSV</button>
-        <p id="importResult" style="margin-top:10px;"></p>
+        <p id="importResult"></p>
       </div>
     </div>
   </div>
@@ -66,19 +75,12 @@
       document.getElementById("login-section").classList.add("hidden");
       document.getElementById("dashboard").classList.remove("hidden");
       document.getElementById("nav-right").classList.remove("hidden");
+      loadMe();
       loadStudents();
-
-      // Show teacher name
-      fetch("/me", { headers: {Authorization: "Bearer " + token} })
-        .then(r => r.json())
-        .then(user => {
-          document.getElementById("teacherName").textContent = "Welcome, " + user.name;
-        });
     }
 
     function logout() {
       localStorage.removeItem("teacher_token");
-      token = "";
       location.reload();
     }
 
@@ -92,13 +94,19 @@
         })
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || data.role !== "teacher") {
         document.getElementById("status").textContent = "Login failed";
         return;
       }
       token = data.access_token;
       localStorage.setItem("teacher_token", token);
       showDashboard();
+    }
+
+    async function loadMe() {
+      const res = await fetch("/me", { headers: {Authorization: "Bearer " + token} });
+      const u = await res.json();
+      document.getElementById("teacherName").textContent = u.name;
     }
 
     async function loadStudents() {
@@ -115,7 +123,7 @@
             <td>${s.email}</td>
             <td>${s.course_code} - ${s.course_title}</td>
             <td>${s.attended}/${s.total_sessions}</td>
-            <td class="percent">${s.percentage}%</td>
+            <td><b>${s.percentage}%</b></td>
           </tr>`;
       });
     }
