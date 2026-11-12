@@ -251,7 +251,7 @@ def scan(qr_token: str, user=Depends(current_user)):
         session_id = int(payload["session_id"])
     except JWTError:
         raise HTTPException(400, "QR expired or invalid")
-    
+
     with engine.begin() as conn:
         session = conn.execute(
             text("SELECT course_id FROM sessions WHERE id = :id AND status = 'open'"),
@@ -260,33 +260,32 @@ def scan(qr_token: str, user=Depends(current_user)):
         if not session:
             raise HTTPException(400, "session is closed")
 
-     # Check if student is on the official list
-enrolled = conn.execute(
-    text("""
-        SELECT u.name 
-        FROM enrollments e
-        JOIN users u ON u.id = e.student_id
-        WHERE e.student_id = :sid AND e.course_id = :cid
-    """),
-    {"sid": user["id"], "cid": session["course_id"]}
-).mappings().first()
+        # Get the name the teacher uploaded for this student
+        teacher_name_row = conn.execute(
+            text("""
+                SELECT u.name 
+                FROM enrollments e
+                JOIN users u ON u.id = e.student_id
+                WHERE e.student_id = :sid AND e.course_id = :cid
+            """),
+            {"sid": user["id"], "cid": session["course_id"]}
+        ).mappings().first()
 
-if not enrolled:
-    raise HTTPException(403, "You are not on the official list for this course")
+        if not teacher_name_row:
+            raise HTTPException(403, "You are not on the official list for this course")
 
-# Flexible name check
-def normalize_name(name):
-    # Lowercase, remove extra spaces, sort words
-    words = name.lower().strip().split()
-    return " ".join(sorted(words))
+        # Flexible name check
+        def normalize(name):
+            return " ".join(sorted(name.lower().strip().split()))
 
-student_name = conn.execute(
-    text("SELECT name FROM users WHERE id = :id"),
-    {"id": user["id"]}
-).scalar()
+        student_name = conn.execute(
+            text("SELECT name FROM users WHERE id = :id"),
+            {"id": user["id"]}
+        ).scalar()
 
-if normalize_name(student_name) != normalize_name(enrolled["name"]):
-    raise HTTPException(403, "Your name does not match the official list")
+        if normalize(student_name) != normalize(teacher_name_row["name"]):
+            raise HTTPException(403, "Your name does not match the official list")
+
         # Check if already marked
         existing = conn.execute(
             text("""
@@ -306,9 +305,11 @@ if normalize_name(student_name) != normalize_name(enrolled["name"]):
             """),
             {"session_id": session_id, "student_id": user["id"]},
         )
-    
+
     return {"present": True, "session_id": session_id}
-# -------------------- Student Dashboard --------------------
+    
+          # -------------------- Student Dashboard --------------------
+
 @app.get("/me/dashboard")
 def student_dashboard(user=Depends(current_user)):
     if user["role"] != "student":
