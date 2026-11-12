@@ -104,26 +104,28 @@ def register(name: str, reg_no: str, password: str, role: str = "student"):
 @app.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends()):
     with engine.begin() as conn:
-        # Try login with reg_no first (for students)
+        # First try registration number (for students)
         row = conn.execute(
             text("SELECT id, password_hash, role FROM users WHERE reg_no = :u"),
             {"u": form.username},
         ).mappings().first()
-        
-        # If not found, try email (for teachers/admins)
+
+        # If not found, try email (only for teachers and admins)
         if not row:
             row = conn.execute(
-                text("SELECT id, password_hash, role FROM users WHERE email = :u"),
+                text("SELECT id, password_hash, role FROM users WHERE email = :u AND role IN ('teacher', 'admin')"),
                 {"u": form.username},
             ).mappings().first()
-        
+
         if not row or not verify_password(form.password, row["password_hash"]):
             raise HTTPException(401, "invalid credentials")
+
     return {
         "access_token": make_token(row["id"], row["role"]),
         "token_type": "bearer",
         "role": row["role"],
     }
+    
 # -------------------- Courses --------------------
 @app.post("/courses")
 def create_course(code: str, title: str, user=Depends(current_user)):
