@@ -548,9 +548,10 @@ def admin_courses(user=Depends(current_user)):
             """)
         ).mappings().all()
     return [dict(row) for row in rows]
+import os
 import resend
 
-resend.api_key = "re_YRtyasgC_CZPrbgitbfFBSGcrDPKSgjJB"
+resend.api_key = os.getenv("re_XJpy5N78_8LvgubzyKY8xqyrssY47d4NZ")
 
 @app.post("/admin/send-teacher-email")
 def send_teacher_email(teacher_email: str, teacher_name: str, password: str, user=Depends(current_user)):
@@ -576,8 +577,7 @@ def send_teacher_email(teacher_email: str, teacher_name: str, password: str, use
         email = resend.Emails.send(params)
         return {"sent": True, "message": "Email sent successfully"}
     except Exception as e:
-        raise HTTPException(500, f"Failed to send email: {str(e)}")
-        
+        raise HTTPException(500, f"Failed to send email: {str(e)}")        
 @app.post("/change-password")
 def change_password(current_password: str, new_password: str, user=Depends(current_user)):
     with engine.begin() as conn:
