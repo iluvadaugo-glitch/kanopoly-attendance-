@@ -18,6 +18,7 @@
     th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
     th { background: #fafafa; }
     .hidden { display: none; }
+    a button { width: 100%; }
     @media (max-width: 600px) {
       .navbar { flex-direction: column; gap: 10px; }
       table { font-size: 14px; }
@@ -43,6 +44,10 @@
     </div>
 
     <div id="dashboard" class="hidden">
+      <div class="card">
+        <a href="/teacher"><button>Create Course / Start Session</button></a>
+      </div>
+
       <div class="card">
         <h2>Import Students (CSV)</h2>
         <p style="font-size:14px; color:#555;">Format: name,reg_no</p>
@@ -105,7 +110,6 @@
       const container = document.getElementById("coursesContainer");
       container.innerHTML = "";
 
-      // Group by course
       const groups = {};
       data.students.forEach(s => {
         const key = s.course_code + " - " + s.course_title;
