@@ -2,6 +2,56 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: Arial; background: #f4f6f9; margin: 0; }
+    .card { max-width: 500px; margin: 60px auto; background: white; padding: 25px; border-radius: 12px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; }
+    button { background: #333; color: white; border: none; cursor: pointer; }
+    .pw-box { position: relative; }
+    .toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Admin Login</h2>
+    <input id="email" placeholder="Email">
+    <div class="pw-box">
+      <input id="password" type="password" placeholder="Password">
+      <button type="button" class="toggle" onclick="togglePw()">👁️</button>
+    </div>
+    <button onclick="login()">Login</button>
+    <p id="status" style="color:red;"></p>
+  </div>
+  <script>
+    function togglePw() {
+      const i = document.getElementById("password");
+      i.type = i.type === "password" ? "text" : "password";
+    }
+    async function login() {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.role === "admin") {
+        localStorage.setItem("admin_token", data.access_token);
+        location.reload();
+      } else {
+        document.getElementById("status").textContent = "Login failed";
+      }
+    }
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
   <title>Admin Panel</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
