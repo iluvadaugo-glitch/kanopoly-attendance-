@@ -583,7 +583,7 @@ def send_teacher_email(teacher_email: str, teacher_name: str, password: str, use
     except ApiException as e:
         raise HTTPException(500, f"Failed to send email: {str(e)}")
         
-    @app.delete("/admin/users/{user_id}")
+@app.delete("/admin/users/{user_id}")
 def delete_user(user_id: int, user=Depends(current_user)):
     if user["role"] != "admin":
         raise HTTPException(403, "admin only")
