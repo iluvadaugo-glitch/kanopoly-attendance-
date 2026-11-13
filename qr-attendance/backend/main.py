@@ -554,7 +554,7 @@ import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
 configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] = "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"
+configuration.api_key['api-key'] = "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"
 
 @app.post("/admin/send-teacher-email")
 def send_teacher_email(teacher_email: str, teacher_name: str, password: str, user=Depends(current_user)):
