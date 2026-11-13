@@ -582,3 +582,15 @@ def send_teacher_email(teacher_email: str, teacher_name: str, password: str, use
         return {"sent": True, "message": "Email sent successfully"}
     except ApiException as e:
         raise HTTPException(500, f"Failed to send email: {str(e)}")
+        
+    @app.delete("/admin/users/{user_id}")
+def delete_user(user_id: int, user=Depends(current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(403, "admin only")
+    if user["id"] == user_id:
+        raise HTTPException(400, "you cannot delete yourself")
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM attendance WHERE student_id = :id"), {"id": user_id})
+        conn.execute(text("DELETE FROM enrollments WHERE student_id = :id"), {"id": user_id})
+        conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+    return {"deleted": True, "user_id": user_id}
