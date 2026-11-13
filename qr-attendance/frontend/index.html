@@ -1,90 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>School QR Attendance System</title>
+  <title>Kano State Polytechnic - QR Attendance</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #333; }
-    .navbar {
-      background: linear-gradient(90deg, #1a73e8, #0d47a1);
-      color: white; padding: 18px 40px; display: flex; justify-content: space-between; align-items: center;
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; }
+    .navbar { background: #0d47a1; color: white; padding: 15px 20px; text-align: center; }
+    .hero { text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #0d47a1, #1976d2); color: white; }
+    .hero h1 { font-size: 28px; margin-bottom: 10px; }
+    .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .card { background: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .card h3 { margin-bottom: 10px; color: #0d47a1; }
+    a button { background: #0d47a1; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 24px; }
+      .grid { grid-template-columns: 1fr; }
     }
-    .navbar h1 { font-size: 24px; }
-    .hero {
-      background: url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1350&q=80') center/cover no-repeat;
-      height: 420px; display: flex; align-items: center; justify-content: center; text-align: center; color: white;
-      position: relative;
-    }
-    .hero::before {
-      content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.45);
-    }
-    .hero-content { position: relative; z-index: 1; }
-    .hero h2 { font-size: 42px; margin-bottom: 10px; }
-    .hero p { font-size: 18px; margin-bottom: 25px; }
-    .btn {
-      display: inline-block; margin: 8px; padding: 12px 24px; background: #1a73e8; color: white;
-      text-decoration: none; border-radius: 6px; font-weight: 600;
-    }
-    .btn:hover { background: #1557b0; }
-    .btn-green { background: #34a853; }
-    .btn-green:hover { background: #2d8e47; }
-    .btn-red { background: #ea4335; }
-    .btn-red:hover { background: #d33426; }
-    .section { max-width: 1100px; margin: 50px auto; padding: 0 20px; text-align: center; }
-    .cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 25px; margin-top: 30px; }
-    .card {
-      background: white; border-radius: 12px; padding: 30px; width: 280px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center;
-    }
-    .card h3 { margin-bottom: 15px; color: #1a73e8; }
-    footer { background: #0d47a1; color: white; text-align: center; padding: 20px; margin-top: 60px; }
   </style>
 </head>
 <body>
-  <div class="navbar">
-    <h1>KANO STATE POLYTECHNIC</h1>
-    <div>QR Attendance System</div>
-  </div>
-
+  <div class="navbar"><h2>Kano State Polytechnic</h2></div>
   <div class="hero">
-    <div class="hero-content">
-      <h2>Smart Attendance Made Easy</h2>
-      <p>Secure QR-based attendance for students and teachers</p>
-      <a href="/student-dashboard" class="btn">Student Portal</a>
-      <a href="/teacher-dashboard" class="btn btn-green">Teacher Portal</a>
-    </div>
+    <h1>QR Attendance System</h1>
+    <p>Smart and secure attendance for students and teachers</p>
   </div>
-
-  <div class="section">
-    <h2>Quick Access</h2>
-    <div class="cards">
+  <div class="container">
+    <div class="grid">
       <div class="card">
         <h3>Students</h3>
-        <p>View your courses and attendance percentage</p>
-        <a href="/student-dashboard" class="btn">Go to Dashboard</a>
+        <p>View courses and attendance</p>
+        <a href="/student-dashboard"><button>Student Dashboard</button></a>
       </div>
       <div class="card">
         <h3>Teachers</h3>
-        <p>Manage courses, start sessions & view students</p>
-        <a href="/teacher-dashboard" class="btn btn-green">Go to Dashboard</a>
+        <p>Manage courses and sessions</p>
+        <a href="/teacher-dashboard"><button>Teacher Dashboard</button></a>
       </div>
       <div class="card">
         <h3>Scan QR</h3>
-        <p>Mark your attendance by scanning the QR code</p>
-        <a href="/student" class="btn">Scan Now</a>
+        <p>Mark your attendance</p>
+        <a href="/student"><button>Scan Now</button></a>
       </div>
     </div>
-
-    <div style="margin-top: 40px;">
-      <a href="/register" class="btn btn-red">Create Student Account</a>
-      <a href="/admin" class="btn" style="background:#555;">Admin Panel</a>
-    </div>
   </div>
-
-  <footer>
-    <p>KANO STATE POLYTECHNIC &copy; 2026 | QR Attendance System</p>
-  </footer>
 </body>
 </html>
