@@ -3,110 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Dashboard</title>
+  <title>Admin Panel</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial; background: #f4f6f9; }
-    .navbar { background: #0d47a1; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-    .container { max-width: 900px; margin: 15px auto; padding: 0 12px; }
-    .card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-    input, button { width: 100%; padding: 12px; margin: 6px 0; border-radius: 6px; border: 1px solid #ddd; }
-    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
+    body { font-family: Arial; background: #f4f6f9; margin: 0; }
+    .card { max-width: 500px; margin: 60px auto; background: white; padding: 25px; border-radius: 12px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; }
+    button { background: #333; color: white; border: none; cursor: pointer; }
     .pw-box { position: relative; }
     .toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; }
-    .hidden { display: none; }
-    .course-box { border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 15px; overflow: hidden; }
-    .course-header { background: #e3f2fd; padding: 12px; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-    @media (max-width: 600px) {
-      .navbar { flex-direction: column; gap: 8px; text-align: center; }
-      th, td { font-size: 14px; }
-    }
   </style>
 </head>
 <body>
-  <div class="navbar">
-    <h1>Teacher Dashboard</h1>
-    <div id="nav-right" class="hidden">
-      <span id="teacherName"></span>
-      <button onclick="logout()" style="width:auto; margin-left:10px;">Logout</button>
+  <div class="card">
+    <h2>Admin Login</h2>
+    <input id="email" placeholder="Email">
+    <div class="pw-box">
+      <input id="password" type="password" placeholder="Password">
+      <button type="button" class="toggle" onclick="togglePw()">👁️</button>
     </div>
-  </div>
-  <div class="container">
-    <div id="login-section" class="card">
-      <h2>Login</h2>
-      <input id="email" placeholder="Email">
-      <div class="pw-box">
-        <input id="password" type="password" placeholder="Password">
-        <button type="button" class="toggle" onclick="togglePw()">👁️</button>
-      </div>
-      <button onclick="login()">Login</button>
-      <p id="status" style="color:red;"></p>
-    </div>
-    <div id="dashboard" class="hidden">
-      <div class="card"><a href="/teacher"><button>Create Course / Start Session</button></a></div>
-      <div class="card">
-        <h2>Import Students (CSV)</h2>
-        <p style="font-size:14px;">Format: name,reg_no</p>
-        <input id="courseId" placeholder="Course ID">
-        <input type="file" id="csvFile" accept=".csv">
-        <button onclick="importStudents()">Upload CSV</button>
-        <p id="importResult"></p>
-      </div>
-      <div id="coursesContainer"></div>
-    </div>
+    <button onclick="login()">Login</button>
+    <p id="status" style="color:red;"></p>
   </div>
   <script>
-    let token = localStorage.getItem("teacher_token") || "";
-    function togglePw() { const i = document.getElementById("password"); i.type = i.type === "password" ? "text" : "password"; }
-    function showDashboard() {
-      document.getElementById("login-section").classList.add("hidden");
-      document.getElementById("dashboard").classList.remove("hidden");
-      document.getElementById("nav-right").classList.remove("hidden");
-      loadMe(); loadStudents();
+    function togglePw() {
+      const i = document.getElementById("password");
+      i.type = i.type === "password" ? "text" : "password";
     }
-    function logout() { localStorage.removeItem("teacher_token"); location.reload(); }
     async function login() {
       const res = await fetch("/login", {
         method: "POST",
         headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: new URLSearchParams({ username: document.getElementById("email").value, password: document.getElementById("password").value })
+        body: new URLSearchParams({
+          username: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        })
       });
       const data = await res.json();
-      if (!res.ok || data.role !== "teacher") { document.getElementById("status").textContent = "Login failed"; return; }
-      token = data.access_token; localStorage.setItem("teacher_token", token); showDashboard();
-    }
-    async function loadMe() {
-      const res = await fetch("/me", {headers: {Authorization: "Bearer " + token}});
-      const u = await res.json(); document.getElementById("teacherName").textContent = u.name;
-    }
-    async function loadStudents() {
-      const res = await fetch("/teacher/dashboard", {headers: {Authorization: "Bearer " + token}});
-      const data = await res.json();
-      const container = document.getElementById("coursesContainer"); container.innerHTML = "";
-      const groups = {};
-      data.students.forEach(s => {
-        const key = s.course_code + " - " + s.course_title;
-        if (!groups[key]) groups[key] = []; groups[key].push(s);
-      });
-      for (const course in groups) {
-        let html = `<div class="course-box"><div class="course-header">${course}</div><table><thead><tr><th>Name</th><th>Attendance</th><th>%</th></tr></thead><tbody>`;
-        groups[course].forEach(s => { html += `<tr><td>${s.name}</td><td>${s.attended}/${s.total_sessions}</td><td><b>${s.percentage}%</b></td></tr>`; });
-        html += `</tbody></table></div>`; container.innerHTML += html;
+      if (res.ok && data.role === "admin") {
+        localStorage.setItem("admin_token", data.access_token);
+        location.reload();
+      } else {
+        document.getElementById("status").textContent = "Login failed";
       }
     }
-    async function importStudents() {
-      const courseId = document.getElementById("courseId").value;
-      const file = document.getElementById("csvFile").files[0];
-      if (!courseId || !file) return alert("Select course and file");
-      const fd = new FormData(); fd.append("file", file);
-      const res = await fetch(`/teacher/import-students?course_id=${courseId}`, { method: "POST", headers: {Authorization: "Bearer " + token}, body: fd });
-      const data = await res.json();
-      document.getElementById("importResult").textContent = data.message || "Done";
-      if (res.ok) loadStudents();
-    }
-    if (token) showDashboard();
   </script>
 </body>
 </html>
