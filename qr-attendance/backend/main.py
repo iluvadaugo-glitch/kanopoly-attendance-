@@ -550,37 +550,49 @@ def admin_courses(user=Depends(current_user)):
     return [dict(row) for row in rows]
 
 
-import sib_api_v3_sdk
-from sib_api_v3_sdk.rest import ApiException
+import smtplib
+from email.mime.text import MIMEText
 
-configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] = "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"
+SMTP_SERVER = "smtp-relay.brevo.com"
+SMTP_PORT = 587
+SMTP_LOGIN = "c2db77001@smtp-brevo.com"
+SMTP_PASSWORD = "xsmtpsib-c270fb142f749d934492b5a3a42ceeb688f86de89fa0a938c47a043be82af7e0-XeZgQQVdNEw4AdB7"
 
 @app.post("/admin/send-teacher-email")
 def send_teacher_email(teacher_email: str, teacher_name: str, password: str, user=Depends(current_user)):
     if user["role"] != "admin":
         raise HTTPException(403, "admin only")
 
+    subject = "Your Teacher Account - QR Attendance Portal"
+    body = f"""
+Hello {teacher_name},
+
+Your teacher account has been created.
+
+Login details:
+Email: {teacher_email}
+Password: {password}
+
+Portal link: https://kanopoly-attendance.onrender.com/
+
+Please log in and change your password if needed.
+
+Best regards,
+School Admin
+"""
+
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = "funds.0002@gmail.com"
+    msg["To"] = teacher_email
+
     try:
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=[{"email": teacher_email, "name": teacher_name}],
-            sender={"email": "funds.0002@gmail.com", "name": "School Admin"},
-            subject="Your Teacher Account - QR Attendance Portal",
-            html_content=f"""
-                <p>Hello {teacher_name},</p>
-                <p>Your teacher account has been created.</p>
-                <p><b>Login details:</b><br>
-                Email: {teacher_email}<br>
-                Password: {password}</p>
-                <p>Portal link: <a href="https://kanopolyattendance.site/">https://kanopolyattendance.site/</a></p>
-                <p>Please log in and change your password if needed.</p>
-                <p>Best regards,<br>School Admin</p>
-            """
-        )
-        api_instance.send_transac_email(send_smtp_email)
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_LOGIN, SMTP_PASSWORD)
+            server.send_message(msg)
         return {"sent": True, "message": "Email sent successfully"}
-    except ApiException as e:
+    except Exception as e:
         raise HTTPException(500, f"Failed to send email: {str(e)}")
         
 @app.delete("/admin/users/{user_id}")
