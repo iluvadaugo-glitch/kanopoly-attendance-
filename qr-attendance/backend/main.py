@@ -548,10 +548,13 @@ def admin_courses(user=Depends(current_user)):
             """)
         ).mappings().all()
     return [dict(row) for row in rows]
-import os
-import resend
 
-resend.api_key = os.getenv("re_XJpy5N78_8LvgubzyKY8xqyrssY47d4NZ")
+
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key['api-key'] = "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"
 
 @app.post("/admin/send-teacher-email")
 def send_teacher_email(teacher_email: str, teacher_name: str, password: str, user=Depends(current_user)):
@@ -559,11 +562,12 @@ def send_teacher_email(teacher_email: str, teacher_name: str, password: str, use
         raise HTTPException(403, "admin only")
 
     try:
-        params = {
-            "from": "School Admin <onboarding@resend.dev>",
-            "to": [teacher_email],
-            "subject": "Your Teacher Account - QR Attendance Portal",
-            "html": f"""
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{"email": teacher_email, "name": teacher_name}],
+            sender={"email": "funds.0002@gmail.com", "name": "School Admin"},
+            subject="Your Teacher Account - QR Attendance Portal",
+            html_content=f"""
                 <p>Hello {teacher_name},</p>
                 <p>Your teacher account has been created.</p>
                 <p><b>Login details:</b><br>
@@ -573,35 +577,8 @@ def send_teacher_email(teacher_email: str, teacher_name: str, password: str, use
                 <p>Please log in and change your password if needed.</p>
                 <p>Best regards,<br>School Admin</p>
             """
-        }
-        email = resend.Emails.send(params)
-        return {"sent": True, "message": "Email sent successfully"}
-    except Exception as e:
-        raise HTTPException(500, f"Failed to send email: {str(e)}")        
-@app.post("/change-password")
-def change_password(current_password: str, new_password: str, user=Depends(current_user)):
-    with engine.begin() as conn:
-        row = conn.execute(
-            text("SELECT password_hash FROM users WHERE id = :id"),
-            {"id": user["id"]}
-        ).mappings().first()
-        if not row or not verify_password(current_password, row["password_hash"]):
-            raise HTTPException(400, "current password is wrong")
-        new_hash = hash_password(new_password)
-        conn.execute(
-            text("UPDATE users SET password_hash = :hash WHERE id = :id"),
-            {"hash": new_hash, "id": user["id"]}
         )
-    return {"message": "Password changed successfully"}
-@app.get("/change-password")
-def change_password_page():
-    return FileResponse("frontend/change-password.html")
-@app.delete("/admin/users/{user_id}")
-def delete_user(user_id: int, user=Depends(current_user)):
-    if user["role"] != "admin":
-        raise HTTPException(403, "admin only")
-    if user["id"] == user_id:
-        raise HTTPException(400, "you cannot delete yourself")
-    with engine.begin() as conn:
-        conn.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
-    return {"deleted": True, "user_id": user_id}
+        api_instance.send_transac_email(send_smtp_email)
+        return {"sent": True, "message": "Email sent successfully"}
+    except ApiException as e:
+        raise HTTPException(500, f"Failed to send email: {str(e)}")
