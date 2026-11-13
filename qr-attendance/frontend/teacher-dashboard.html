@@ -2,19 +2,26 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teacher Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial; background: #f4f6f9; }
-    .navbar { background: #0d47a1; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
-    .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-    .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-    input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #333; }
+    .navbar { background: #0d47a1; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    input, button, select { padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; width: 100%; }
     button { background: #0d47a1; color: white; border: none; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    .course-box { border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .course-header { background: #e3f2fd; padding: 12px 15px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #fafafa; }
     .hidden { display: none; }
-    .btn-green { background: #34a853; }
+    @media (max-width: 600px) {
+      .navbar { flex-direction: column; gap: 10px; }
+      table { font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -22,7 +29,7 @@
     <h1>Teacher Dashboard</h1>
     <div id="nav-right" class="hidden">
       <span id="teacherName"></span>
-      <button onclick="logout()" style="margin-left:15px;">Logout</button>
+      <button onclick="logout()" style="width:auto; margin-left:15px;">Logout</button>
     </div>
   </div>
 
@@ -37,46 +44,15 @@
 
     <div id="dashboard" class="hidden">
       <div class="card">
-        <h2>Quick Actions</h2>
-        <a href="/teacher" target="_blank"><button class="btn-green">Start Class / Show QR Code</button></a>
-      </div>
-
-      <div class="card">
-        <h2>Add Student Manually</h2>
-        <input id="manualCourseId" placeholder="Course ID">
-        <input id="studentName" placeholder="Student Name">
-        <input id="studentEmail" placeholder="Student Email">
-        <button onclick="addStudentManually()">Add Student</button>
-        <p id="manualResult"></p>
-      </div>
-
-      <div class="card">
         <h2>Import Students (CSV)</h2>
-        <p style="font-size:14px; color:#555; margin-bottom:10px;">
-          CSV format: name,email<br>
-          Example: John Doe,john@example.com
-        </p>
+        <p style="font-size:14px; color:#555;">Format: name,reg_no</p>
         <input id="courseId" placeholder="Course ID">
         <input type="file" id="csvFile" accept=".csv">
         <button onclick="importStudents()">Upload CSV</button>
         <p id="importResult"></p>
       </div>
 
-      <div class="card">
-        <h2>My Students</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Course</th>
-              <th>Attendance</th>
-              <th>%</th>
-            </tr>
-          </thead>
-          <tbody id="students"></tbody>
-        </table>
-      </div>
+      <div id="coursesContainer"></div>
     </div>
   </div>
 
@@ -121,56 +97,57 @@
       document.getElementById("teacherName").textContent = u.name;
     }
 
-    async function addStudentManually() {
-      const courseId = document.getElementById("manualCourseId").value;
-      const name = document.getElementById("studentName").value.trim();
-      const email = document.getElementById("studentEmail").value.trim();
-      if (!courseId || !name || !email) {
-        document.getElementById("manualResult").textContent = "Fill all fields";
-        return;
-      }
-      // Reuse the import endpoint by sending a small CSV-like request
-      const formData = new FormData();
-      const blob = new Blob([`name,email\n${name},${email}`], { type: "text/csv" });
-      formData.append("file", blob, "student.csv");
-      const res = await fetch(`/teacher/import-students?course_id=${courseId}`, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token },
-        body: formData
-      });
-      const data = await res.json();
-      document.getElementById("manualResult").textContent = data.message || JSON.stringify(data);
-      if (res.ok) {
-        document.getElementById("studentName").value = "";
-        document.getElementById("studentEmail").value = "";
-        loadStudents();
-      }
-    }
-
     async function loadStudents() {
       const res = await fetch("/teacher/dashboard", {
         headers: {Authorization: "Bearer " + token}
       });
       const data = await res.json();
-      const tbody = document.getElementById("students");
-      tbody.innerHTML = "";
+      const container = document.getElementById("coursesContainer");
+      container.innerHTML = "";
+
+      // Group by course
+      const groups = {};
       data.students.forEach(s => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${s.name}</td>
-            <td>${s.email}</td>
-            <td>${s.course_code} - ${s.course_title}</td>
-            <td>${s.attended}/${s.total_sessions}</td>
-            <td><b>${s.percentage}%</b></td>
-          </tr>`;
+        const key = s.course_code + " - " + s.course_title;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(s);
       });
+
+      for (const course in groups) {
+        let html = `
+          <div class="course-box">
+            <div class="course-header">${course}</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Reg No</th>
+                  <th>Attendance</th>
+                  <th>%</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        groups[course].forEach(s => {
+          html += `
+            <tr>
+              <td>${s.name}</td>
+              <td>${s.email || "-"}</td>
+              <td>${s.attended}/${s.total_sessions}</td>
+              <td><b>${s.percentage}%</b></td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML += html;
+      }
     }
 
     async function importStudents() {
       const courseId = document.getElementById("courseId").value;
       const file = document.getElementById("csvFile").files[0];
       if (!courseId || !file) {
-        alert("Enter Course ID and select a file");
+        alert("Enter Course ID and select file");
         return;
       }
       const formData = new FormData();
