@@ -2,66 +2,54 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Student Account</title>
   <style>
-    body { font-family: 'Segoe UI', Arial; background: #f4f6f9; margin: 0; }
-    .header { background: #1a73e8; color: white; padding: 30px; text-align: center; }
-    .card { background: white; max-width: 420px; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 15px; }
-    button { background: #1a73e8; color: white; border: none; cursor: pointer; }
-    button:hover { background: #1557b0; }
-    #msg { text-align: center; margin-top: 10px; font-weight: bold; }
+    body { font-family: Arial; background: #f4f6f9; margin: 0; }
+    .card { max-width: 420px; margin: 60px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; }
+    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
+    .pw-box { position: relative; }
+    .toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Create Student Account</h1>
-  </div>
-
   <div class="card">
+    <h2>Create Student Account</h2>
     <input id="name" placeholder="Full Name">
     <input id="regno" placeholder="Registration Number (e.g. ND/COM/24/0134)">
-    <input id="password" type="password" placeholder="Password">
+    <div class="pw-box">
+      <input id="password" type="password" placeholder="Password">
+      <button type="button" class="toggle" onclick="togglePw()">👁️</button>
+    </div>
     <button onclick="register()">Create Account</button>
-    <p id="msg"></p>
-    <p style="text-align:center; margin-top:20px;"><a href="/">← Back to Home</a></p>
+    <p id="status"></p>
   </div>
 
   <script>
-    async function register() {
-      const name = document.getElementById("name").value.trim();
-      const regno = document.getElementById("regno").value.trim();
-      const password = document.getElementById("password").value;
-      const msg = document.getElementById("msg");
+    function togglePw() {
+      const i = document.getElementById("password");
+      i.type = i.type === "password" ? "text" : "password";
+    }
 
+    async function register() {
+      const name = document.getElementById("name").value;
+      const regno = document.getElementById("regno").value;
+      const password = document.getElementById("password").value;
       if (!name || !regno || !password) {
-        msg.style.color = "red";
-        msg.textContent = "Please fill all fields";
+        document.getElementById("status").textContent = "Fill all fields";
         return;
       }
-
-      msg.style.color = "black";
-      msg.textContent = "Creating account...";
-
-      try {
-        const res = await fetch(`/register?name=${encodeURIComponent(name)}&reg_no=${encodeURIComponent(regno)}&password=${encodeURIComponent(password)}&role=student`, {
-          method: "POST"
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          msg.style.color = "green";
-          msg.textContent = "Account created successfully! Redirecting...";
-          setTimeout(() => {
-            window.location.href = "/student";
-          }, 1500);
-        } else {
-          msg.style.color = "red";
-          msg.textContent = data.detail || "Failed to create account";
-        }
-      } catch (err) {
-        msg.style.color = "red";
-        msg.textContent = "Network error. Please try again.";
+      const res = await fetch(`/register?name=${encodeURIComponent(name)}&reg_no=${encodeURIComponent(regno)}&password=${encodeURIComponent(password)}&role=student`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("status").style.color = "green";
+        document.getElementById("status").textContent = "Account created! You can now login.";
+      } else {
+        document.getElementById("status").style.color = "red";
+        document.getElementById("status").textContent = data.detail || "Failed";
       }
     }
   </script>
