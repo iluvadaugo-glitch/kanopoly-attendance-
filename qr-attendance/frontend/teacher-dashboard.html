@@ -3,80 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Dashboard</title>
+  <title>Admin Panel</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #333; }
-    .navbar { background: #0d47a1; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
-    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    input, button, select { padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; width: 100%; }
-    button { background: #0d47a1; color: white; border: none; cursor: pointer; }
-    .course-box { border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
-    .course-header { background: #e3f2fd; padding: 12px 15px; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #fafafa; }
-    .hidden { display: none; }
-    a button { width: 100%; }
-    @media (max-width: 600px) {
-      .navbar { flex-direction: column; gap: 10px; }
-      table { font-size: 14px; }
-    }
+    body { font-family: Arial; background: #f4f6f9; margin: 0; }
+    .card { max-width: 500px; margin: 60px auto; background: white; padding: 25px; border-radius: 12px; }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; }
+    button { background: #333; color: white; border: none; cursor: pointer; }
+    .pw-box { position: relative; }
+    .toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="navbar">
-    <h1>Teacher Dashboard</h1>
-    <div id="nav-right" class="hidden">
-      <span id="teacherName"></span>
-      <button onclick="logout()" style="width:auto; margin-left:15px;">Logout</button>
-    </div>
-  </div>
-
-  <div class="container">
-    <div id="login-section" class="card">
-      <h2>Login</h2>
-      <input id="email" placeholder="Email">
+  <div class="card">
+    <h2>Admin Login</h2>
+    <input id="email" placeholder="Email">
+    <div class="pw-box">
       <input id="password" type="password" placeholder="Password">
-      <button onclick="login()">Login</button>
-      <p id="status" style="color:red;"></p>
+      <button type="button" class="toggle" onclick="togglePw()">👁️</button>
     </div>
-
-    <div id="dashboard" class="hidden">
-      <div class="card">
-        <a href="/teacher"><button>Create Course / Start Session</button></a>
-      </div>
-
-      <div class="card">
-        <h2>Import Students (CSV)</h2>
-        <p style="font-size:14px; color:#555;">Format: name,reg_no</p>
-        <input id="courseId" placeholder="Course ID">
-        <input type="file" id="csvFile" accept=".csv">
-        <button onclick="importStudents()">Upload CSV</button>
-        <p id="importResult"></p>
-      </div>
-
-      <div id="coursesContainer"></div>
-    </div>
+    <button onclick="login()">Login</button>
+    <p id="status" style="color:red;"></p>
   </div>
-
   <script>
-    let token = localStorage.getItem("teacher_token") || "";
-
-    function showDashboard() {
-      document.getElementById("login-section").classList.add("hidden");
-      document.getElementById("dashboard").classList.remove("hidden");
-      document.getElementById("nav-right").classList.remove("hidden");
-      loadMe();
-      loadStudents();
+    function togglePw() {
+      const i = document.getElementById("password");
+      i.type = i.type === "password" ? "text" : "password";
     }
-
-    function logout() {
-      localStorage.removeItem("teacher_token");
-      location.reload();
-    }
-
     async function login() {
       const res = await fetch("/login", {
         method: "POST",
@@ -87,86 +39,13 @@
         })
       });
       const data = await res.json();
-      if (!res.ok || data.role !== "teacher") {
+      if (res.ok && data.role === "admin") {
+        localStorage.setItem("admin_token", data.access_token);
+        location.reload();
+      } else {
         document.getElementById("status").textContent = "Login failed";
-        return;
-      }
-      token = data.access_token;
-      localStorage.setItem("teacher_token", token);
-      showDashboard();
-    }
-
-    async function loadMe() {
-      const res = await fetch("/me", { headers: {Authorization: "Bearer " + token} });
-      const u = await res.json();
-      document.getElementById("teacherName").textContent = u.name;
-    }
-
-    async function loadStudents() {
-      const res = await fetch("/teacher/dashboard", {
-        headers: {Authorization: "Bearer " + token}
-      });
-      const data = await res.json();
-      const container = document.getElementById("coursesContainer");
-      container.innerHTML = "";
-
-      const groups = {};
-      data.students.forEach(s => {
-        const key = s.course_code + " - " + s.course_title;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(s);
-      });
-
-      for (const course in groups) {
-        let html = `
-          <div class="course-box">
-            <div class="course-header">${course}</div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Reg No</th>
-                  <th>Attendance</th>
-                  <th>%</th>
-                </tr>
-              </thead>
-              <tbody>
-        `;
-        groups[course].forEach(s => {
-          html += `
-            <tr>
-              <td>${s.name}</td>
-              <td>${s.email || "-"}</td>
-              <td>${s.attended}/${s.total_sessions}</td>
-              <td><b>${s.percentage}%</b></td>
-            </tr>
-          `;
-        });
-        html += `</tbody></table></div>`;
-        container.innerHTML += html;
       }
     }
-
-    async function importStudents() {
-      const courseId = document.getElementById("courseId").value;
-      const file = document.getElementById("csvFile").files[0];
-      if (!courseId || !file) {
-        alert("Enter Course ID and select file");
-        return;
-      }
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`/teacher/import-students?course_id=${courseId}`, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token },
-        body: formData
-      });
-      const data = await res.json();
-      document.getElementById("importResult").textContent = data.message || JSON.stringify(data);
-      if (res.ok) loadStudents();
-    }
-
-    if (token) showDashboard();
   </script>
 </body>
 </html>
